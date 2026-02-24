@@ -1,4 +1,4 @@
-# Podman/Apptainer Runner for Styx compiled wrappers
+# Podman Runner for Styx compiled wrappers
 
 [![Build](https://github.com/styx-api/styxpodman/actions/workflows/test.yaml/badge.svg?branch=main)](https://github.com/styx-api/styxpodman/actions/workflows/test.yaml?query=branch%3Amain)
 [![codecov](https://codecov.io/gh/styx-api/styxpodman/branch/main/graph/badge.svg?token=22HWWFWPW5)](https://codecov.io/gh/styx-api/styxpodman)
@@ -75,14 +75,12 @@ If you encounter any issues or have questions, please open an issue on the [GitH
 ## Requirements
 
 - Python 3.10+
-- Podman or Apptainer installed and running on your system
+- Podman installed and running on your system
 
 ## Comparison with [`styxdocker`](https://github.com/styx-api/styxdocker)
 
 While [`styxdocker`](https://github.com/styx-api/styxdocker) and [`styxpodman`](https://github.com/styx-api/styxpodman) serve similar purposes, they have some key differences:
 
-- Container Technology: `styxdocker` uses Docker, while `styxpodman` uses Podman/Apptainer.
-- Platform Support: `styxdocker` works on Windows, Linux, and macOS, whereas `styxpodman` is not supported on Windows.
-- User Permissions: `styxdocker` can run containers as the current user on POSIX systems, which can help with file permission issues.
+- Container Technology: `styxdocker` uses Docker, while `styxpodman` uses Podman.
 
 Choose the package that best fits your infrastructure and requirements.
