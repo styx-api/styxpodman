@@ -20,27 +20,20 @@ from styxdefs import (
     StyxRuntimeError,
 )
 
+if os.name == "posix":
+    _HOST_UID: int | None = os.getuid()
+else:
+    _HOST_UID = None
+
 
 def _podman_mount(host_path: str, container_path: str, readonly: bool) -> str:
-    """Construct Podman mount argument.
-
-    Args:
-        host_path: Path on the host filesystem to mount.
-        container_path: Path inside the container where the host path will be mounted.
-        readonly: If True, mount as read-only; otherwise mount as read-write.
-
-    Returns:
-        Formatted mount string in the format "host:container[:ro]".
-
-    Raises:
-        ValueError: If host_path or container_path contains illegal characters
-            (comma, backslash, or colon).
-    """
-    # Check for illegal characters
-    charset = set(host_path + container_path)
-    if any(c in charset for c in r",\\:"):
-        raise ValueError("Illegal characters in path")
-    return f"{host_path}:{container_path}{':ro' if readonly else ''}"
+    """Construct Podman mount argument."""
+    host_path = host_path.replace('"', r"\"")
+    container_path = container_path.replace('"', r"\"")
+    host_path = host_path.replace("\\", "\\\\")
+    container_path = container_path.replace("\\", "\\\\")
+    readonly_str = ",readonly" if readonly else ""
+    return f"type=bind,source={host_path},target={container_path}{readonly_str}"
 
 
 class StyxPodmanError(StyxRuntimeError):
@@ -55,14 +48,7 @@ class StyxPodmanError(StyxRuntimeError):
         command_args: list[str] | None = None,
         podman_args: list[str] | None = None,
     ) -> None:
-        """Create StyxPodmanError.
-
-        Args:
-            return_code: The exit code returned by the failed process.
-            command_args: The command arguments that were executed inside the container.
-            podman_args: The Podman-specific arguments used to run the
-                container.
-        """
+        """Create StyxPodmanError."""
         super().__init__(
             return_code=return_code,
             command_args=command_args,
@@ -87,19 +73,10 @@ class _PodmanExecution(Execution):
         container_tag: str,
         podman_executable: str,
         podman_extra_args: list[str],
+        podman_user_id: int | None,
         environ: dict[str, str],
     ) -> None:
-        """Create PodmanExecution.
-
-        Args:
-            logger: Logger instance for execution logging.
-            output_dir: Directory where output files will be written.
-            metadata: Metadata about the command being executed.
-            container_tag: Podman container image tag (e.g., "docker://ubuntu:20.04").
-            podman_executable: Path to the podman executable.
-            podman_extra_args: Additional arguments to pass to podman.
-            environ: Environment variables to set in the container.
-        """
+        """Create PodmanExecution."""
         self.logger: logging.Logger = logger
         self.input_mounts: list[tuple[pl.Path, str, bool]] = []
         self.input_file_next_id = 0
@@ -108,6 +85,7 @@ class _PodmanExecution(Execution):
         self.container_tag = container_tag
         self.podman_executable = podman_executable
         self.podman_extra_args = podman_extra_args
+        self.podman_user_id = podman_user_id
         self.environ = environ
 
     def input_file(
@@ -291,36 +269,20 @@ class PodmanRunner(Runner):
         image_overrides: dict[str, str] | None = None,
         podman_executable: str = "podman",
         podman_extra_args: list[str] | None = None,
+        podman_user_id: int | None = None,
         data_dir: InputPathType | None = None,
         environ: dict[str, str] | None = None,
     ) -> None:
-        """Create a new PodmanRunner.
-
-        Args:
-            image_overrides: Dictionary mapping container image tags to alternative
-                tags. Useful for using local or custom container images.
-            podman_executable: Path to the podman executable. Defaults to
-                "podman" (assumes it's in PATH).
-            podman_extra_args: Additional arguments to pass to all
-                podman commands.
-                Defaults to ["--no-mount", "hostfs"] to prevent automatic host
-                filesystem mounting.
-            data_dir: Directory for temporary execution data and outputs.
-                Defaults to "styx_tmp" in the current directory.
-            environ: Environment variables to set in all container executions.
-
-        Raises:
-            ValueError: If running on Windows (Podman is not supported on Windows).
-        """
-        if os.name == "nt":
-            raise ValueError("PodmanRunner is not supported on Windows")
-
+        """Create a new PodmanRunner."""
         self.data_dir = pl.Path(data_dir or "styx_tmp")
         self.uid = os.urandom(8).hex()
         self.execution_counter = 0
-        self.image_overrides = image_overrides or {}
         self.podman_executable = podman_executable
-        self.podman_extra_args = podman_extra_args or ["--no-mount", "hostfs"]
+        self.podman_extra_args = podman_extra_args or []
+        self.podman_user_id = (
+            podman_user_id if podman_user_id is not None else _HOST_UID
+        )
+        self.image_overrides = image_overrides or {}
         self.environ = environ or {}
 
         # Configure logger
@@ -334,28 +296,14 @@ class PodmanRunner(Runner):
             self.logger.addHandler(ch)
 
     def start_execution(self, metadata: Metadata) -> Execution:
-        """Start a new execution context.
-
-        Creates a new execution instance with a unique output directory
-        and configured container image.
-
-        Args:
-            metadata: Metadata describing the command to execute, including
-                the container image tag.
-
-        Returns:
-            Execution context for running commands in the container.
-
-        Raises:
-            ValueError: If metadata doesn't specify a container image tag.
-        """
+        """Start a new execution context."""
         if metadata.container_image_tag is None:
             raise ValueError("No container image tag specified in metadata")
         container_tag = self.image_overrides.get(
             metadata.container_image_tag, metadata.container_image_tag
         )
-        if not container_tag.startswith("docker://"):
-            container_tag = f"docker://{container_tag}"
+        if not container_tag.startswith("docker.io/"):
+            container_tag = f"docker.io/{container_tag}"
 
         self.execution_counter += 1
         return _PodmanExecution(
@@ -364,6 +312,7 @@ class PodmanRunner(Runner):
             / f"{self.uid}_{self.execution_counter - 1}_{metadata.name}",
             metadata=metadata,
             container_tag=container_tag,
+            podman_user_id=self.podman_user_id,
             podman_executable=self.podman_executable,
             podman_extra_args=self.podman_extra_args,
             environ=self.environ,
