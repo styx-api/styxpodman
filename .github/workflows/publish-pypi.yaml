@@ -1,0 +1,35 @@
+name: Publish to PyPi
+
+permissions:
+  actions: write
+
+on:
+  push:
+    tags:
+    - '*'
+
+jobs:
+  pypi-release:
+    name: PyPi Release
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Setup uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: true
+
+    - name: Install dependencies and build
+      run: |
+        uv sync --frozen --no-dev --no-install-project
+        uv build
+
+    - name: Publish to PyPi
+      id: pypi_publish
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_TOKEN }}
+        verbose: true
