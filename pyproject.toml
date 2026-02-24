@@ -1,9 +1,9 @@
 [project]
 name = "styxpodman"
 version = "0.7.1"
-description = "Podman/Apptainer integration for Styx compiled wrappers"
+description = "Podman integration for Styx compiled wrappers"
 authors = [
-  { name = "Florian Rupprecht", email = "33600480+nx10@users.noreply.github.com" },
+  {name = "Florian Rupprecht", email = "33600480+nx10@users.noreply.github.com"}
 ]
 requires-python = ">=3.10"
 readme = "README.md"
@@ -17,7 +17,7 @@ dev = [
   "pre-commit>=4.4.0",
   "pytest-cov>=7.0.0",
   "ruff>=0.14.6",
-  "deptry>=0.24.0",
+  "deptry>=0.24.0"
 ]
 docs = ["pdoc>=15.0.0"]
 
