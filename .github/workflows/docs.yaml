@@ -51,7 +51,7 @@ jobs:
         path: ./docs_build
     - name: Deploy to GitHub Pages
       id: deployment
-      uses: actions/deploy-pages@v4
+      uses: actions/deploy-pages@v5
     - name: Deploy to Cloudflare Pages
       id: cloudflare-deployment
       uses: cloudflare/wrangler-action@v3
