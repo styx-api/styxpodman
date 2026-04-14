@@ -1,3 +1,13 @@
+> [!IMPORTANT]
+> **This repository has moved.**
+> `styxpodman` (the Podman runner) is now developed in the
+> [**styx-runtime-py**](https://github.com/styx-api/styx-runtime-py) monorepo,
+> alongside the other Styx Python runtime packages.
+> New issues and pull requests should be filed there.
+> The PyPI package `styxpodman` continues to be published from the new location.
+
+---
+
 # Podman Runner for Styx compiled wrappers
 
 [![Build](https://github.com/styx-api/styxpodman/actions/workflows/test.yaml/badge.svg?branch=main)](https://github.com/styx-api/styxpodman/actions/workflows/test.yaml?query=branch%3Amain)
